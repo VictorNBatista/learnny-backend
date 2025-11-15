@@ -1,180 +1,140 @@
 # API do Projeto Learnny
 
-Esta API faz parte do projeto **Learrny**, uma plataforma de conexão entre alunos e professores particulares. A API oferece funcionalidades de **CRUD de usuários**, autenticação utilizando **Laravel Passport**, e gerenciamento de sessões com **tokens OAuth**.
+Esta é a API RESTful para a plataforma **Learnny**, um sistema de conexão entre alunos e professores particulares. Ela gerencia todos os dados, lógica de negócios, autenticação e integração com serviços externos.
 
-## Tecnologias Utilizadas
+## Funcionalidades Principais
 
-- **PHP 8.x**: Linguagem principal do projeto.
-- **Laravel 10.x**: Framework PHP utilizado para a construção da API.
-- **Laravel Passport**: Gerenciamento de autenticação via OAuth 2.0.
-- **MySQL**: Banco de dados relacional utilizado para armazenar informações dos usuários.
-- **HeidiSQL**: Ferramenta de gerenciamento de banco de dados utilizada no ambiente de desenvolvimento.
-- **Sodium**: Extensão de criptografia para PHP.
+* **Autenticação Tripla:** Sistema de autenticação seguro usando Laravel Passport para os três atores: Alunos (`User`), Professores (`Professor`) e `Admin`.
+* **Ciclo de Agendamento Completo:** Endpoints para professores definirem sua disponibilidade, alunos consultarem horários livres e o ciclo completo de agendamento (solicitar, confirmar, rejeitar, cancelar, concluir).
+* **Gestão de Professores:** CRUD de professores com fluxo de aprovação de cadastro pelo Admin.
+* **Integração com Moodle:** Provisionamento automático de usuários (alunos e professores) e criação dinâmica de cursos no Moodle via API.
+* **Gestão de Matérias (Admin):** CRUD para as matérias disponíveis na plataforma.
 
-## Funcionalidades
+## Stack de Tecnologias
 
-- **CRUD de Usuários**
-  - Criar, listar, atualizar e deletar usuários.
-- **Autenticação**
-  - Login e logout utilizando tokens OAuth 2.0 via Laravel Passport.
-- **Listagem de Usuários**
-  - Retorna uma lista de usuários cadastrados.
+* **PHP 8.2+** / **Laravel 11**
+* **Laravel Passport** (para autenticação OAuth2)
+* **Banco de Dados:**
+  * **Local:** MySQL (via Laragon)
+  * **Produção:** PostgreSQL (via Supabase)
+* **Deploy de Produção:** [**Railway**](https://railway.app/)
 
-## Instalação e Configuração
+## 1. Configuração do Ambiente Local (Laragon + MySQL)
 
-### 1. Clonar o Repositório
+### 1.1. Clonar e Instalar
 
-Clone o repositório para seu ambiente local:
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/VictorNBatista/learnny-backend.git
+   cd learnny-backend
+   ```
 
-```bash
-git clone https://github.com/VictorNBatista/learnny.git
-```
-### 2. Instalar Dependências
+2. Instale as dependências do Composer:
+    ```bash
+    composer install
+    ```
 
-Execute o comando abaixo para instalar as dependências do projeto via Composer:
+### 1.2. Configurar .env
 
-```bash
-composer install
-```
+1. Copie o arquivo de exemplo:
+    ```bash
+    cp .env.example .env
+    ```
 
-### 3. Configurar o Arquivo .env
+2. Gere a chave da aplicação:
+    ```bash
+    php artisan key:generate
+    ```
 
-Crie uma cópia do arquivo `.env.example` e renomeie para `.env`. Após isso, configure os seguintes parâmetros:
+3. Configure as variáveis do seu banco de dados local **MySQL** no `.env`:
+    ```Ini
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=learnny_db
+    DB_USERNAME=root
+    DB_PASSWORD=
+    ```
 
-```bash
-APP_NAME=Learrny
-APP_ENV=local
-APP_KEY=base64:gerado-pelo-comando-php-artisan-key-generate
-APP_DEBUG=true
-APP_URL=http://localhost
+### 1.3. Banco de Dados e Autenticação
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE="Nome Banco"
-DB_USERNAME=seu_usuario
-DB_PASSWORD=sua_senha
+1. Rode as migrações (isso criará todas as tabelas):
+    ```bash
+    php artisan migrate
+    ```
 
-PASSPORT_PERSONAL_ACCESS_CLIENT_ID=1
-PASSPORT_PERSONAL_ACCESS_CLIENT_SECRET=token_secret
-```
+2. Configure o Laravel Passport:
+    ```bash
+    php artisan passport:keys
+    php artisan passport:client --personal
+    ```
 
-### 4. Gerar a Chave da Aplicação
+3. (Opcional) Popule o banco com dados de teste (User, Professores e Admin):
+    ```bash
+    php artisan db:seed
+    ```
 
-Para gerar a chave do Laravel, execute o seguinte comando:
+### 1.4. Servir a Aplicação
 
-```bash
-php artisan key:generate
-```
+1. Inicie o servidor local:
+    ```bash
+    php artisan serve
+    ```
 
-### 5. Migrar as Tabelas do Banco de Dados
+2. A API estará disponível em `http://localhost:8000`.
 
-Rode as migrações para criar as tabelas necessárias no banco de dados:
+## 2. Deploy em Produção (Railway + Supabase)
 
-```bash
-php artisan migrate
-```
+1. Banco de Dados (Supabase):
+    * Crie um projeto no Supabase (que usa PostgreSQL).
+    * Vá em **Connect** na parte superior da página e copie as credenciais de conexão.
 
-### 6. Configurar o Passport
+2. API (Railway):
+    * Crie um novo projeto no Railway e vincule seu repositório do GitHub.
+    * Vá até a aba **Variables** e adicione todas as variáveis do seu `.env`.
+    * Importante: Altere as variáveis do banco para apontar para o Supabase:
+      ```Ini
+      DB_CONNECTION=pgsql
+      DB_HOST=... (Host do Supabase)
+      DB_PORT=5432
+      DB_DATABASE=postgres
+      DB_USERNAME=postgres
+      DB_PASSWORD=... (Sua senha do Supabase)
+      ```
 
-Execute os comandos abaixo para configurar o Laravel Passport:
+    * Adicione a `APP_KEY` e as credenciais do Moodle (`MOODLE_URL`, `MOODLE_TOKEN`, etc.).
+    * Em **Settings > Deploy**, ajuste o "Start Command" para rodar as migrações:
+      ```bash
+      php artisan config:cache && php artisan route:cache && php artisan migrate --force && php artisan passport:install --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=$PORT
+      ```
+    
+3. URL da API:
+    * Vá em **Settings > Networking** e gere um domínio. A URL (ex: `learnny-api.up.railway.app`) será usada no seu front-end.
 
-#### 1. Gerar as suas chaves criptografia.
-```bash
-php artisan passport:keys
-```
+## 3. Endpoints Principais da API
+A URL base é `http://localhost:8000/api` (local) ou sua URL do Railway (produção).
 
-#### 2. Gerar o seu personal access.
-```bash
-php artisan passport:client --personal
-```
+### Autenticação
+* `POST /api/login`: Login do Aluno
+* `POST /api/professor/login`: Login do Professor
+* `POST /api/admin/login`: Login do Admin
+* `POST /api/cadastrar`: Cadastro de novo Aluno
+* `POST /api/professor/cadastrar`: Cadastro de novo Professor
+* `POST /api/logout`: (Protegido) Invalida o token do usuário logado
 
-Isso gerará os clients necessários para o OAuth.
+### Agendamento
+* `GET /api/professors/{id}/availabilities`: (Público) Retorna os slots de horários livres de um professor.
+* `POST /api/appointments`: (Aluno) Cria uma nova solicitação de agendamento.
+* `GET /api/appointments/my`: (Aluno) Lista os agendamentos do aluno logado.
+* `PUT /api/appointments/{id}/cancel`: (Aluno) Cancela um agendamento.
 
-### 7. Servir a Aplicação
+### Gestão do Professor
+* `GET /api/professor/availabilities`: (Professor) Retorna as regras de disponibilidade salvas.
+* `POST /api/professor/availabilities`: (Professor) Salva/Atualiza as regras de disponibilidade.
+* `GET /api/professor/appointments`: (Professor) Lista os agendamentos recebidos.
+* `PUT /api/professor/appointments/{id}/confirm`: (Professor) Confirma um agendamento.
+* `PUT /api/professor/appointments/{id}/reject`: (Professor) Rejeita um agendamento.
 
-Inicie o servidor local utilizando o comando abaixo:
-
-```bash
-php artisan serve
-```
-
-A API estará disponível em http://localhost:8000.
-
-## Rotas da API
-
-### Cadastro de Usuário
-
-`POST /cadastrar`
-
-Exemplo de body JSON:
-
-```json
-{
-  "name": "User",
-  "email": "user@email.com",
-  "contact": "123456789",
-  "password": "User@123",
-  "password_confirmation": "User@123"
-}
-```
-
-### Login
-
-`POST /login`
-
-Exemplo de body JSON:
-
-```json
-{
-  "email": "user@email.com",
-  "password": "User@123"
-}
-```
-
-### Logout
-
-`POST /logout `
-
-O token deve ser enviado no cabeçalho `Authorization`:
-
-```css
-{
-  Authorization: Bearer {seu_token}
-}
-```
-
-### Listagem de Usuários
-
-`GET /users `
-
-Retorna a lista de todos os usuários cadastrados.
-
-### Testes
-
-Para rodar os testes, execute o seguinte comando:
-
-```bash
-php artisan test
-```
-
----
-
-# Aplicativo Web Learnny
-
-Para acessar a aplicação, certifique-se do projeto estar dentro do diretório `C:\laragon\www` e que esteja com o laragon rodando o MySQL e Apache, juntamente com o BackEnd.
-
-No navegador acesse a URL abaixo:
-```URL
-http://learnny.test/Learnny-front/index.html
-```
-
-Após estas etapas o sistema estará pronto para rodar.
-
-### Contribuições
-
-Sinta-se à vontade para contribuir com o projeto através de pull requests. Sugestões, melhorias e correções são sempre bem-vindas!
-
-### Licença
-
-Este projeto é licenciado sob a licença MIT.
+### Gestão do Admin
+* `GET /api/admin/professores/pendentes`: (Admin) Lista professores aguardando aprovação.
+* `PUT /api/admin/professores/aprovar/{id}`: (Admin) Aprova um professor.
